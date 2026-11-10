@@ -1,0 +1,11 @@
+version: "3.8"
+
+services:
+  ml-analytics:
+    build: .
+    ports:
+      - "8001:8001"
+    environment:
+      - APP_ENV=development
+      - RUBRIC_INFERENCE_MODE=heuristic
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:4000

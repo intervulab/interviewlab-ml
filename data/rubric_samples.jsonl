@@ -1,0 +1,4 @@
+{"question": "Explain REST idempotency", "answer": "GET and PUT are idempotent because repeating them does not change server state unexpectedly.", "label": 4}
+{"question": "Explain REST idempotency", "answer": "Uh I think REST is like APIs.", "label": 1}
+{"question": "Design a rate limiter", "answer": "I use a token bucket in Redis with TTL and sliding windows for burst traffic.", "label": 4}
+{"question": "Design a rate limiter", "answer": "Maybe add a database check each request.", "label": 2}

@@ -1,0 +1,6 @@
+# Optional: transformer rubric fine-tuning / inference
+-r requirements.txt
+torch==2.5.1
+transformers==4.46.3
+datasets==3.1.0
+accelerate==1.1.1

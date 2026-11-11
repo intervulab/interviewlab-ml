@@ -72,6 +72,8 @@ docs/
 
 See [docs/INTEGRATION.md](docs/INTEGRATION.md) for Component 3 wiring.
 
+**Full five-repo local deploy** (humans or LLM agents): [`backend` repo `docs/LOCAL_DEPLOYMENT.md`](https://github.com/intervulab/backend/blob/integration/demo/docs/LOCAL_DEPLOYMENT.md) on branch `integration/demo`.
+
 ## License
 
 MIT © InterviewLab Team

@@ -1,0 +1,4 @@
+# Optional: local transcription when browser Web Speech API fails (e.g. network / Brave)
+faster-whisper==1.1.0
+# PyAV 19 removed av.open(metadata_errors=...); faster-whisper 1.1.x still passes it.
+av>=11,<19

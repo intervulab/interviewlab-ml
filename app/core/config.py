@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     HESITATION_MFCC_DELTA_THRESHOLD: float = 8.0
     FILLER_WORDS: str = "um,uh,like,you know,basically,actually,kind of,sort of"
 
+    # Browser STT often fails offline (Brave/network). Fall back to on-server Whisper tiny.
+    ENABLE_LOCAL_STT: bool = True
+
     RUBRIC_INFERENCE_MODE: str = "heuristic"  # heuristic | transformer
     RUBRIC_MODEL_NAME: str = "distilbert-base-uncased"
     RUBRIC_MODEL_PATH: str = ""

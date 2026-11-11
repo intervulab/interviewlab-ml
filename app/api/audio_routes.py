@@ -73,6 +73,7 @@ async def reset_session(session_id: str) -> None:
 async def analyze_uploaded_audio(
     session_id: str = Form(...),
     transcript_text: str | None = Form(default=None),
+    duration_seconds: float | None = Form(default=None),
     audio: UploadFile = File(...),
 ) -> AnalyzeFileResponse:
     suffix = Path(audio.filename or "audio.wav").suffix or ".wav"
@@ -86,6 +87,7 @@ async def analyze_uploaded_audio(
             data,
             suffix=suffix,
             transcript_text=transcript_text,
+            duration_hint_secs=duration_seconds,
         )
     except Exception as exc:
         raise HTTPException(

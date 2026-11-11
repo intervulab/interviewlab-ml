@@ -70,7 +70,8 @@ docs/
   INTEGRATION.md
 ```
 
-See [docs/INTEGRATION.md](docs/INTEGRATION.md) for Component 3 wiring.
+See [docs/INTEGRATION.md](docs/INTEGRATION.md) for Component 3 wiring.  
+**Deliverables & acceptance:** [docs/C5_DELIVERABLES.md](docs/C5_DELIVERABLES.md).
 
 **Full five-repo local deploy** (humans or LLM agents): [`backend` repo `docs/LOCAL_DEPLOYMENT.md`](https://github.com/intervulab/backend/blob/integration/demo/docs/LOCAL_DEPLOYMENT.md) on branch `integration/demo`.
 

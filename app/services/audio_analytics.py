@@ -114,14 +114,36 @@ def update_transcript_metrics(state: SessionState) -> RealTimeMetrics:
     )
 
 
-def finalize_session_metrics(state: SessionState) -> AudioMetrics:
+def finalize_session_metrics(
+    state: SessionState,
+    *,
+    transcript: str | None = None,
+    wpm_duration_secs: float | None = None,
+) -> AudioMetrics:
     settings = get_settings()
-    transcript = state.full_transcript
-    words = state.word_count
+    transcript = (transcript if transcript is not None else state.full_transcript).strip()
+    words = len(transcript.split()) if transcript else 0
     fillers = count_filler_words(transcript, settings.filler_word_list)
     filler_pct = (fillers / words * 100.0) if words else 0.0
 
     avg_wpm = float(np.mean(state.wpm_samples)) if state.wpm_samples else 0.0
+    pace_denom = wpm_duration_secs if wpm_duration_secs and wpm_duration_secs > 0 else state.speaking_duration_secs
+    if pace_denom > 0.1 and words > 0:
+        pace_from_transcript = (words / pace_denom) * 60.0
+        # Uploaded answers: wall-clock / hint beats VAD-only time (and session-cumulative transcript).
+        if wpm_duration_secs or avg_wpm <= 0:
+            avg_wpm = pace_from_transcript
+        elif avg_wpm > pace_from_transcript * 1.25:
+            avg_wpm = pace_from_transcript
+    elif avg_wpm <= 0 and state.speaking_duration_secs > 0.1 and words > 0:
+        avg_wpm = (words / state.speaking_duration_secs) * 60.0
+
+    # Typical conversational speech rarely exceeds ~220 WPM; widen denominator if math says otherwise
+    # (often duplicate live captions + final STT, or VAD under-counting speech time).
+    if avg_wpm > 220 and words > 0:
+        min_secs = (words * 60.0) / 220.0
+        if pace_denom < min_secs:
+            avg_wpm = 220.0
     pauses = state.pause_durations_secs
     longest_pause = max(pauses) if pauses else 0.0
     avg_pause = float(np.mean(pauses)) if pauses else 0.0

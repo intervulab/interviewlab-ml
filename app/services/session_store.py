@@ -25,7 +25,7 @@ class SessionState:
     wpm_samples: list[float] = field(default_factory=list)
     processed_sequences: set[int] = field(default_factory=set)
     finalized: bool = False
-    audio_metrics: AudioMetrics | None = None
+    audio_metrics: "AudioMetrics | None" = None
 
     @property
     def full_transcript(self) -> str:
@@ -35,6 +35,22 @@ class SessionState:
     def word_count(self) -> int:
         text = self.full_transcript
         return len(text.split()) if text else 0
+
+
+def reset_acoustic_counters(state: SessionState) -> None:
+    """Clear chunk-derived acoustic stats but keep accumulated transcript text."""
+    state.hesitation_spikes = 0
+    state.chunk_count = 0
+    state.speaking_duration_secs = 0.0
+    state.pause_durations_secs.clear()
+    state.volume_samples.clear()
+    state.wpm_samples.clear()
+    state.processed_sequences.clear()
+    state.silence_ms_carry = 0.0
+    state.last_volume = 0.0
+    state.last_is_speaking = False
+    state.finalized = False
+    state.audio_metrics = None
 
 
 class SessionStore:

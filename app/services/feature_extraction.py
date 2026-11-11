@@ -43,8 +43,23 @@ def extract_mfcc_deltas(y: np.ndarray, sample_rate: int) -> np.ndarray:
     if y.size < 64:
         return np.zeros(1, dtype=np.float32)
 
+    # Librosa delta defaults to width=9; very short clips yield <9 MFCC frames and crash scipy.
+    min_samples = int(0.35 * sample_rate)
+    if y.size < min_samples:
+        y = np.pad(y, (0, min_samples - y.size), mode="constant")
+
     mfcc = librosa.feature.mfcc(y=y, sr=sample_rate, n_mfcc=13)
-    delta = librosa.feature.delta(mfcc)
+    n_frames = int(mfcc.shape[1])
+    if n_frames < 3:
+        return np.zeros(1, dtype=np.float32)
+
+    width = 9
+    if n_frames < width:
+        width = n_frames if n_frames % 2 == 1 else n_frames - 1
+    if width < 3:
+        return np.linalg.norm(np.diff(mfcc, axis=1), axis=0)
+
+    delta = librosa.feature.delta(mfcc, width=width)
     return np.linalg.norm(delta, axis=0)
 
 

@@ -1,14 +1,18 @@
 """Audio chunk ingestion — called by Component 3 after WebSocket relay."""
 
-from fastapi import APIRouter, HTTPException, status
+from pathlib import Path
+
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from app.models.schemas import (
+    AnalyzeFileResponse,
     AudioChunkRequest,
     AudioChunkResponse,
     FinalizeSessionRequest,
     FinalizeSessionResponse,
 )
 from app.services.audio_analytics import finalize_session_metrics, process_audio_chunk
+from app.services.file_audio import analyze_audio_bytes
 from app.services.session_store import session_store
 
 router = APIRouter(prefix="/audio", tags=["Audio Analytics"])
@@ -63,3 +67,36 @@ async def finalize_session(payload: FinalizeSessionRequest) -> FinalizeSessionRe
 @router.delete("/session/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def reset_session(session_id: str) -> None:
     session_store.reset(session_id)
+
+
+@router.post("/analyze-file", response_model=AnalyzeFileResponse)
+async def analyze_uploaded_audio(
+    session_id: str = Form(...),
+    transcript_text: str | None = Form(default=None),
+    audio: UploadFile = File(...),
+) -> AnalyzeFileResponse:
+    suffix = Path(audio.filename or "audio.wav").suffix or ".wav"
+    data = await audio.read()
+    if not data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty audio file")
+
+    try:
+        metrics = analyze_audio_bytes(
+            session_id,
+            data,
+            suffix=suffix,
+            transcript_text=transcript_text,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Audio analysis failed: {exc}",
+        ) from exc
+
+    state = session_store.get_or_create(session_id)
+    return AnalyzeFileResponse(
+        session_id=session_id,
+        audio_metrics=metrics,
+        audio_transcript=state.full_transcript,
+        chunks_processed=state.chunk_count,
+    )

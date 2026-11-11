@@ -125,3 +125,10 @@ class FinalizeSessionResponse(BaseModel):
     session_id: str
     audio_metrics: AudioMetrics
     audio_transcript: str
+
+
+class AnalyzeFileResponse(BaseModel):
+    session_id: str
+    audio_metrics: AudioMetrics
+    audio_transcript: str
+    chunks_processed: int

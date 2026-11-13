@@ -19,6 +19,24 @@ from app.services.stt_local import (
 )
 
 
+def transcribe_snippet_bytes(audio_bytes: bytes, *, suffix: str = ".webm") -> tuple[str, bool]:
+    """Quick STT for live caption fallback (no full metrics pipeline)."""
+    settings = get_settings()
+    available = settings.ENABLE_LOCAL_STT and local_stt_available()
+    if not available or not audio_bytes:
+        return "", available
+
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(audio_bytes)
+        tmp_path = tmp.name
+
+    try:
+        text, _ = transcribe_audio_file_with_timing(tmp_path)
+        return (text or "").strip(), True
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
+
+
 def _float32_chunk_b64(samples: np.ndarray) -> str:
     payload = struct.pack(f"<{samples.size}f", *samples.astype(np.float32))
     return base64.b64encode(payload).decode("ascii")

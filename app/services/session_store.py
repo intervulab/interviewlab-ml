@@ -22,6 +22,7 @@ class SessionState:
     last_volume: float = 0.0
     last_is_speaking: bool = False
     silence_ms_carry: float = 0.0
+    last_hesitation_mark_secs: float = -999.0
     wpm_samples: list[float] = field(default_factory=list)
     processed_sequences: set[int] = field(default_factory=set)
     finalized: bool = False
@@ -49,6 +50,7 @@ def reset_acoustic_counters(state: SessionState) -> None:
     state.silence_ms_carry = 0.0
     state.last_volume = 0.0
     state.last_is_speaking = False
+    state.last_hesitation_mark_secs = -999.0
     state.finalized = False
     state.audio_metrics = None
 

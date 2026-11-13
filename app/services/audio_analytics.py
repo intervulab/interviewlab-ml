@@ -19,6 +19,19 @@ from app.services.session_store import SessionState
 
 SPEECH_RMS_THRESHOLD = 0.015
 SILENCE_TAIL_MS = 120.0
+PAUSE_HESITATION_SECS = 0.4
+
+
+def _pause_hesitation_count(state: SessionState) -> int:
+    """Meaningful mid-answer pauses (more stable than per-chunk MFCC spikes)."""
+    return len([p for p in state.pause_durations_secs if p >= PAUSE_HESITATION_SECS])
+
+
+def _reported_hesitation_count(state: SessionState) -> int:
+    pauses = _pause_hesitation_count(state)
+    if pauses > 0:
+        return pauses
+    return min(state.hesitation_spikes, 3)
 
 
 def count_filler_words(text: str, fillers: list[str]) -> int:
@@ -56,12 +69,18 @@ def process_audio_chunk(
     is_speaking = volume >= SPEECH_RMS_THRESHOLD
 
     mfcc_deltas = extract_mfcc_deltas(y, sample_rate)
-    spike_count = int(
-        np.sum(mfcc_deltas > settings.HESITATION_MFCC_DELTA_THRESHOLD)
-    )
-    if is_speaking and spike_count > 0:
-        # One hesitation event per chunk max (avoids frame-level noise inflation)
+    spike_frames = int(np.sum(mfcc_deltas > settings.HESITATION_MFCC_DELTA_THRESHOLD))
+    n_frames = max(1, mfcc_deltas.size)
+    spike_ratio = spike_frames / n_frames
+    # Require sustained instability in the chunk, not a single noisy frame (was always ~100/100).
+    if (
+        is_speaking
+        and spike_frames >= 6
+        and spike_ratio >= 0.55
+        and state.speaking_duration_secs - state.last_hesitation_mark_secs >= 2.0
+    ):
         state.hesitation_spikes += 1
+        state.last_hesitation_mark_secs = state.speaking_duration_secs
 
     if is_speaking:
         state.speaking_duration_secs += duration_secs
@@ -87,12 +106,12 @@ def process_audio_chunk(
     metrics = RealTimeMetrics(
         currentWPM=round(state.wpm_samples[-1], 1) if state.wpm_samples else 0.0,
         fillerWords=fillers,
-        hesitationSpikes=state.hesitation_spikes,
+        hesitationSpikes=_reported_hesitation_count(state),
         silenceDurationMs=round(state.silence_ms_carry, 1),
         volumeLevel=round(volume, 3),
         isSpeaking=is_speaking,
     )
-    return metrics, state.hesitation_spikes
+    return metrics, _reported_hesitation_count(state)
 
 
 def update_transcript_metrics(state: SessionState) -> RealTimeMetrics:
@@ -107,7 +126,7 @@ def update_transcript_metrics(state: SessionState) -> RealTimeMetrics:
     return RealTimeMetrics(
         currentWPM=round(state.wpm_samples[-1], 1) if state.wpm_samples else 0.0,
         fillerWords=fillers,
-        hesitationSpikes=state.hesitation_spikes,
+        hesitationSpikes=_reported_hesitation_count(state),
         silenceDurationMs=round(state.silence_ms_carry, 1),
         volumeLevel=round(state.last_volume, 3),
         isSpeaking=state.last_is_speaking,
@@ -151,8 +170,10 @@ def finalize_session_metrics(
     vol_std = float(np.std(state.volume_samples)) if state.volume_samples else 0.0
     vol_mean = float(np.mean(state.volume_samples)) if state.volume_samples else 0.0
 
+    reported_hesitation = _reported_hesitation_count(state)
+
     # Heuristic confidence/clarity scores (0–100) from acoustic + disfluency signals
-    hesitation_penalty = min(40.0, state.hesitation_spikes * 4.0)
+    hesitation_penalty = min(40.0, reported_hesitation * 4.0)
     filler_penalty = min(30.0, filler_pct * 1.5)
     volume_stability = max(0.0, 100.0 - vol_std * 200.0)
     speaking_presence = min(100.0, vol_mean * 120.0)
@@ -171,7 +192,7 @@ def finalize_session_metrics(
         averageWPM=round(avg_wpm, 1),
         fillerWordCount=fillers,
         fillerWordPercentage=round(filler_pct, 2),
-        hesitationCount=state.hesitation_spikes,
+        hesitationCount=reported_hesitation,
         longestPauseSecs=round(longest_pause, 2),
         averagePauseSecs=round(avg_pause, 2),
         confidenceScore=round(confidence, 1),
@@ -186,7 +207,7 @@ def _build_realtime_metrics(state: SessionState) -> RealTimeMetrics:
     return RealTimeMetrics(
         currentWPM=round(state.wpm_samples[-1], 1) if state.wpm_samples else 0.0,
         fillerWords=fillers,
-        hesitationSpikes=state.hesitation_spikes,
+        hesitationSpikes=_reported_hesitation_count(state),
         silenceDurationMs=round(state.silence_ms_carry, 1),
         volumeLevel=round(state.last_volume, 3),
         isSpeaking=state.last_is_speaking,

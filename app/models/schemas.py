@@ -132,3 +132,8 @@ class AnalyzeFileResponse(BaseModel):
     audio_metrics: AudioMetrics
     audio_transcript: str
     chunks_processed: int
+
+
+class TranscribeSnippetResponse(BaseModel):
+    text: str
+    stt_available: bool = True
